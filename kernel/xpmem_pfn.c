@@ -30,7 +30,7 @@
 		(((offset_in_page(v) + (s)) + (PAGE_SIZE - 1)) >> PAGE_SHIFT)
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5,17,0)
-#define pde_data(indoe) PDE_DATA(inode)
+#define pde_data(inode) PDE_DATA(inode)
 #elif LINUX_VERSION_CODE < KERNEL_VERSION(3,10,0)
 #define pde_data(inode) ((PDE(inode)->data))
 #endif
