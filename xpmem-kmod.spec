@@ -2,7 +2,7 @@
 #define buildforkernels current
 #define buildforkernels akmod
 
-%define kernel_release %(uname -r | sed -e 's/\.[^.]*$//g')
+%define kernel_release %(uname -r | sed -e 's/-[^-]*$//g')
 %global debug_package %{nil}
 
 Summary: XPMEM: Cross-partition memory
