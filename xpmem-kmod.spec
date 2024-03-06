@@ -35,7 +35,7 @@ pushd kernel ; make DESTDIR=$RPM_BUILD_ROOT install ; popd
 mkdir -p $RPM_BUILD_ROOT/etc/udev/rules.d
 mkdir -p $RPM_BUILD_ROOT/lib/modules/$(uname -r)/kernel/extra
 cp 56-xpmem.rules $RPM_BUILD_ROOT/etc/udev/rules.d
-cp $RPM_BUILD_ROOT/opt/xpmem/lib/modules/$(uname -r)/xpmem.ko $RPM_BUILD_ROOT/lib/modules/$(uname -r)/kernel/extra
+cp $RPM_BUILD_ROOT/opt/xpmem/lib/modules/$(uname -r)/kernel/xpmem/xpmem.ko $RPM_BUILD_ROOT/lib/modules/$(uname -r)/kernel/extra
 
 %post
 touch /etc/udev/rules.d/56-xpmem.rules
