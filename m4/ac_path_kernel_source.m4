@@ -22,7 +22,8 @@ AC_DEFUN([AC_PATH_KERNEL_SOURCE_SEARCH],
         /lib/modules/${vers}/build \
         /usr/src/kernel-source-* \
         /usr/src/linux-source-${vers} \
-        /usr/src/linux /lib/modules/${vers}/source
+        /usr/src/linux /lib/modules/${vers}/source \
+        /lib/modules/*/build
     do
       if test -e $dir/Module.symvers ; then
         kerneldir=`dirname $dir/Makefile`/ || continue
