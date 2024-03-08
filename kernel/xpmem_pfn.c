@@ -30,7 +30,13 @@
 		(((offset_in_page(v) + (s)) + (PAGE_SIZE - 1)) >> PAGE_SHIFT)
 
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5,17,0)
+#if defined(RHEL_RELEASE_CODE)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,14,0) && RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(9,1)
+  /* */
+#endif
+#else
 #define pde_data(inode) PDE_DATA(inode)
+#endif
 #elif LINUX_VERSION_CODE < KERNEL_VERSION(3,10,0)
 #define pde_data(inode) ((PDE(inode)->data))
 #endif
@@ -261,7 +267,7 @@ xpmem_pin_page(struct xpmem_thread_group *tg, struct task_struct *src_task,
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 18, 0)
 		saved_mask = current->cpus_mask;
 #else
-		saved_mask = current-> cpus_allowed;
+		saved_mask = current->cpus_allowed;
 #endif
 		set_cpus_allowed_ptr(current, cpumask_of(task_cpu(src_task)));
 	}
