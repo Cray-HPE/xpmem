@@ -235,47 +235,48 @@ xpmem_fault_handler(struct vm_area_struct *vma, struct vm_fault *vmf)
 	xpmem_tg_ref(seg_tg);
 
 	/*
-	 * The faulting thread has its mmap_sem/mmap_lock locked on entrance to this
-	 * fault handler. In order to supply the missing page we will need
-	 * to get access to the segment that has it, as well as lock the
-	 * mmap_sem/mmap_lock of the thread group that owns the segment should it be
-	 * different from the faulting thread's. Together these provide the
-	 * potential for a deadlock, which we attempt to avoid in what follows.
+	 * The faulting thread has the faulting address's mmap_sem locked on
+	 * entrance to this fault handler. In order to supply the missing page
+	 * we will need to get access to the segment that has it, as well as
+	 * lock the mmap_sem of the thread group that owns the segment
+	 * should it be different from the faulting address. Together these
+	 * provide the potential for a deadlock, which we attempt to avoid
+	 * in what follows.
 	 */
 
 	ret = xpmem_seg_down_read(seg_tg, seg, 1, 0);
 	if (ret == -EAGAIN) {
-		/* to avoid possible deadlock drop current->mm->mmap_sem/mmap_lock */
-		xpmem_mmap_read_unlock(current->mm);
+		/* to avoid possible deadlock drop vmf->vma->mm->mmap_sem/mmap_lock */
+		xpmem_mmap_read_unlock(vmf->vma->vm_mm);
 		ret = xpmem_seg_down_read(seg_tg, seg, 1, 1);
-		xpmem_mmap_read_lock(current->mm);
+		xpmem_mmap_read_lock(vmf->vma->vm_mm);
 		vma_verification_needed = 1;
 	}
 	if (ret != 0)
 		goto out_1;
 
-	if (seg_tg->mm != current->mm) {
+	if (seg_tg->mm != vmf->vma->vm_mm) {
 		/*
 		 * Lock the seg's thread group's mmap_sem/mmap_lock in a deadlock
 		 * safe manner. Get the locks in a consistent order by
 		 * getting the smaller address first.
 		 */
-		if (current->mm < seg_tg->mm) {
+		if (vmf->vma->vm_mm < seg_tg->mm) {
 			xpmem_mmap_read_lock(seg_tg->mm);
 		} else if (!xpmem_mmap_read_trylock(seg_tg->mm)) {
-			xpmem_mmap_read_unlock(current->mm);
+			xpmem_mmap_read_unlock(vmf->vma->vm_mm);
 			xpmem_mmap_read_lock(seg_tg->mm);
-			xpmem_mmap_read_lock(current->mm);
+			xpmem_mmap_read_lock(vmf->vma->vm_mm);
 			vma_verification_needed = 1;
 		}
 		seg_tg_mmap_sem_locked = 1;
 	}
 
-	/* verify vma hasn't changed due to dropping current->mm->mmap_sem/mmap_lock */
+	/* verify vma hasn't changed due to dropping vmf->vma->vm_mm->mmap_sem/mmap_lock */
 	if (vma_verification_needed) {
 		struct vm_area_struct *retry_vma;
 
-		retry_vma = find_vma(current->mm, vaddr);
+		retry_vma = find_vma(vmf->vma->vm_mm, vaddr);
 		if (!retry_vma ||
 		    retry_vma->vm_start > vaddr ||
 		    !xpmem_is_vm_ops_set(retry_vma) ||
@@ -320,7 +321,7 @@ out_1:
 	 * perform the redundant remap_pfn_range() when a PFN already exists.
 	 */
         if (pfn && pfn_valid(pfn)) {
-		old_pfn = xpmem_vaddr_to_PFN(current->mm, vaddr);
+		old_pfn = xpmem_vaddr_to_PFN(vmf->vma->vm_mm, vaddr);
 		if (old_pfn) {
 			if (old_pfn == pfn) {
 				ret = VM_FAULT_NOPAGE;
