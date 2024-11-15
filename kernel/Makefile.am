@@ -1,9 +1,8 @@
 AM_CPPFLAGS = -I@top_srcdir@/include
 
 moduledir = @moduleprefix@/lib/modules/@kernelvers@/kernel/xpmem
-KERNEL_PATH=@kerneldir@
-init_SCRIPTS = xpmem
-MODULE=xpmem.ko
+KERNEL_PATH = @kerneldir@
+MODULE = xpmem.ko
 
 module_sources = \
     xpmem_attach.c \
@@ -18,7 +17,6 @@ module_sources = \
 EXTRA_DIST = ${module_sources}
 
 module_DATA = $(MODULE)
-
 
 KCPPFLAGS = -include @abs_top_builddir@/config.h -I@abs_top_srcdir@/include
 export KCPPFLAGS
