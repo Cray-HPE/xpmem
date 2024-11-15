@@ -36,20 +36,34 @@ AC_PROG_GCC_TRADITIONAL
 AC_FUNC_MMAP
 AC_CHECK_FUNCS([getpagesize memset])
 
+AC_ARG_WITH([module],
+  [AS_HELP_STRING([--with-module=PATH],
+     [use $PATH as name of module file to write.])],
+     [],
+     [withval=$prefix])
+AC_SUBST([MODULE_PATH], $withval)
+AC_SUBST([MODULE_VERSION], [`basename $withval`])
+
 AC_ARG_WITH([module-prefix],
             [AS_HELP_STRING([--with-module-prefix],
                             [Prefix for kernel module installation])],
             [],
             [with_module_prefix=$prefix])
-
 AC_SUBST([moduleprefix], [${with_module_prefix%%/}])
-AC_SUBST([pkgconfigdir], [${libdir}/pkgconfig])
+
+AC_ARG_WITH([pkgconfig-prefix],
+  [AS_HELP_STRING([--with-pkgconfig-prefix=PATH],
+     [use $PATH as name of module file to write.])],
+     [],
+     [with_pkgconfig_prefix=$prefix])
+AC_SUBST([pkgconfigdir], [$with_pkgconfig_prefix])
 
 AC_PATH_KERNEL_SOURCE
 AC_KERNEL_CHECKS
 
 AC_CONFIG_FILES([Makefile
-                 cray-xpmem.pc
+                 xpmem.pc
+                 module 
                  include/Makefile
                  kernel/Kbuild
                  kernel/Makefile

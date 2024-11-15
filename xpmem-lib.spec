@@ -2,6 +2,8 @@
 
 %define _prefix /opt/xpmem
 
+%define _release_modulefile /opt/cray/modulefiles/xpmem/%{version}-%{release}
+
 Summary: XPMEM: Cross-partition memory
 Name: xpmem
 Version: 0.2
@@ -24,7 +26,7 @@ repository or by downloading a tarball from the link above.
 %setup -n xpmem-%{version}
 
 %build
-./configure --prefix=%{_prefix} --libdir=%{_libdir} --disable-kernel-module
+./configure --prefix=%{_prefix} --libdir=%{_libdir} --includedir=%{_includedir} --disable-kernel-module --with-module=%{_release_modulefile}  --with-pkgconfig-prefix=/usr/lib64/pkgconfig
 make
 
 %install
@@ -39,6 +41,8 @@ echo %{_libdir} > %{buildroot}/etc/ld.so.conf.d/xpmem.conf
 /etc/ld.so.conf.d/xpmem.conf
 %dir %{_prefix}
 %{_prefix}
+%{_release_modulefile}
+/usr/lib64/pkgconfig/xpmem.pc
 
 %post
 /sbin/ldconfig
