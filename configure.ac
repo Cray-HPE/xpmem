@@ -43,8 +43,6 @@ AC_ARG_WITH([module-prefix],
             [with_module_prefix=$prefix])
 
 AC_SUBST([moduleprefix], [${with_module_prefix%%/}])
-AC_SUBST([initdir], [${sysconfdir}/init.d])
-AC_SUBST([ldsoconfdir], [/etc/ld.so.conf.d])
 AC_SUBST([pkgconfigdir], [${libdir}/pkgconfig])
 
 AC_PATH_KERNEL_SOURCE
@@ -52,11 +50,9 @@ AC_KERNEL_CHECKS
 
 AC_CONFIG_FILES([Makefile
                  cray-xpmem.pc
-                 module
                  include/Makefile
                  kernel/Kbuild
                  kernel/Makefile
-                 kernel/xpmem
                  lib/Makefile
                  test/Makefile])
 AC_OUTPUT

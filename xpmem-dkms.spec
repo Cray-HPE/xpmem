@@ -1,7 +1,3 @@
-#define buildforkernels newest
-#define buildforkernels current
-#define buildforkernels akmod
-
 %global debug_package %{nil}
 
 %define intranamespace_name xpmem
@@ -15,10 +11,10 @@ Release: %{uss_rpm_release}
 License: GPLv2
 Group: System Environment/Kernel
 Packager: HPE
-BuildRequires: uss-buildmacros
 Source: xpmem-0.2.tar.bz2
-Requires: autoconf
+BuildRequires: uss-buildmacros
 Requires: dkms
+Provides: kmod(xpmem.ko)
 BuildArch: noarch
 
 %description
@@ -57,17 +53,17 @@ CLEAN='make -C \$kernel_source_dir clean M=\$dkms_tree/%{intranamespace_name}/%{
 AUTOINSTALL='yes'
 EOF
 
-
+%__mkdir_p %{buildroot}%{_modulesloaddir}
+%__install --mode=0644 usr/xpmem.conf %{buildroot}%{_modulesloaddir}/xpmem.conf
+%__mkdir_p %{buildroot}%{_udevrulesdir}
+%__install --mode=0644 usr/56-xpmem.rules %{buildroot}%{_udevrulesdir}/56-xpmem.rules
 
 %preun
 /usr/sbin/dkms remove -m %{intranamespace_name} -v %{version}-%{release} --all --rpm_safe_upgrade
 exit 0
 
 %post
-touch /etc/udev/rules.d/56-xpmem.rules
-
 postinst=/usr/libexec/dkms/common.postinst
-
 if [ ! -x $postinst ]; then
     postinst=/usr/lib/dkms/common.postinst
 fi
@@ -77,8 +73,8 @@ else
     echo "WARNING: $postinst does not exist."
 fi
 
-
 %files -f dkms-files
-
-%config(noreplace)
-/etc/udev/rules.d/56-xpmem.rules
+%dir %{_modulesloaddir}
+%{_modulesloaddir}/xpmem.conf
+%dir %{_udevrulesdir}
+%{_udevrulesdir}/56-xpmem.rules
