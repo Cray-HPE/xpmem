@@ -162,10 +162,18 @@ xpmem_vaddr_to_pte_offset(struct mm_struct *mm, u64 vaddr, u64 *offset)
 	}
 #endif
 
+#if defined(RHEL_RELEASE_CODE)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,14,0) && RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(9,4)
+	pte = pte_offset_kernel(pmd, vaddr);
+#else
+	pte = pte_offset_map(pmd, vaddr);
+#endif
+#else /* non-RHEL */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 4, 0)
 	pte = pte_offset_kernel(pmd, vaddr);
 #else
 	pte = pte_offset_map(pmd, vaddr);
+#endif
 #endif
 	if (!pte_present(*pte))
 		return NULL;
@@ -219,11 +227,18 @@ xpmem_vaddr_to_pte_size(struct mm_struct *mm, u64 vaddr, u64 *size)
 		*size = PMD_SIZE;
 		return NULL;
 	}
-
+#if defined(RHEL_RELEASE_CODE)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,14,0) && RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(9,4)
+	pte = pte_offset_kernel(pmd, vaddr);
+#else
+	pte = pte_offset_map(pmd, vaddr);
+#endif
+#else /* non-RHEL */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 4, 0)
 	pte = pte_offset_kernel(pmd, vaddr);
 #else
 	pte = pte_offset_map(pmd, vaddr);
+#endif
 #endif
 	if (!pte_present(*pte)) {
 		*size = PAGE_SIZE;
