@@ -10,6 +10,7 @@
  * Copyright (c) 2019      Google, LLC. All rights reserved.
  * Copyright (c) 2019      Nathan Hjelm. All rights reserved.
  * Copyright (c) 2017-2020 ARM, Inc. All Rights Reserved
+ * Copyright (c) 2024 HPE. All Rights Reserved
  */
 
 /*
@@ -226,7 +227,6 @@ xpmem_fault_handler(struct vm_area_struct *vma, struct vm_fault *vmf)
 		xpmem_tg_deref(ap_tg);
 		return VM_FAULT_SIGBUS;
 	}
-	DBUG_ON(current->tgid != ap_tg->tgid);
 	DBUG_ON(ap->mode != XPMEM_RDWR);
 
 	seg = ap->seg;

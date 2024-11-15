@@ -80,13 +80,11 @@ xpmem_segid_t xpmem_make(void *vaddr, size_t size, int permit_type,
 			 void *permit_value)
 {
 	struct xpmem_cmd_make make_info;
-	xpmem_segid_t ret;
 
 	make_info.vaddr = (__u64)vaddr;
 	make_info.size  = size;
 	make_info.permit_type  = permit_type;
 	make_info.permit_value = (__u64)permit_value;
-	ret = xpmem_ioctl(XPMEM_CMD_MAKE, &make_info);
 	if (xpmem_ioctl(XPMEM_CMD_MAKE, &make_info) == -1 || !make_info.segid)
 		return -1;
 	return make_info.segid;
