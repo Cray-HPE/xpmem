@@ -264,10 +264,12 @@ xpmem_pin_page(struct xpmem_thread_group *tg, struct task_struct *src_task,
 	 */
 	if (xpmem_vaddr_to_pte_offset(src_mm, vaddr, NULL) == NULL &&
 	    cpu_to_node(task_cpu(current)) != cpu_to_node(task_cpu(src_task))) {
-#ifdef HAVE_STRUCT_TASK_STRUCT_CPUS_MASK
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0)
 		saved_mask = current->cpus_mask;
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 18, 0)
+                saved_mask = current->cpus_mask;
 #else
-		saved_mask = current->cpus_mask;
+		saved_mask = current->cpus_allowed;
 #endif
 		set_cpus_allowed_ptr(current, cpumask_of(task_cpu(src_task)));
 	}
