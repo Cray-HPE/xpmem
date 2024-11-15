@@ -8,7 +8,7 @@ if BUILD_KERNEL_MODULE
 SUBDIRS += kernel
 endif
 
-pkgconfig_DATA = cray-xpmem.pc
+pkgconfig_DATA = xpmem.pc
 
 EXTRA_DIST = \
         $(pkgconfig_DATA) \
@@ -16,3 +16,7 @@ EXTRA_DIST = \
 	xpmem-kmod.spec
 
 dist: dist-bzip2
+
+install-data-local:
+	$(INSTALL_DATA) -D $(srcdir)/module $(DESTDIR)@MODULE_PATH@
+
