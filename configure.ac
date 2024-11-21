@@ -63,7 +63,7 @@ AC_KERNEL_CHECKS
 
 AC_CONFIG_FILES([Makefile
                  xpmem.pc
-                 module 
+                 module
                  include/Makefile
                  kernel/Kbuild
                  kernel/Makefile
