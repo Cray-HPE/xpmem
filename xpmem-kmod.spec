@@ -7,13 +7,13 @@
 
 Summary: XPMEM: Cross-partition memory
 Name: xpmem-kmod-%{kernel_release}
-Version: 2.6.5
+Version: 2.7.0
 Release: 0
 License: GPLv2
 Group: System Environment/Kernel
 Packager: HPE
-Source: xpmem-0.2.tar.bz2
-BuildRoot: %{_tmppath}/%{name}-0.2-build
+Source: xpmem-%{version}.tar.bz2
+BuildRoot: %{_tmppath}/%{name}-%{version}-build
 Requires: kernel = %{kernel_release}
 Provides: xpmem-kmod
 
