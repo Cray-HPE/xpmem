@@ -1,7 +1,7 @@
 %global debug_package %{nil}
 
 %define intranamespace_name xpmem-dkms
-%define version 2.6.5
+%define version 2.7.0
 %define source_name %{intranamespace_name}-%{version}
 
 Summary: XPMEM: Cross-partition memory
@@ -11,7 +11,7 @@ Release: 0
 License: GPLv2
 Group: System Environment/Kernel
 Packager: HPE
-Source: xpmem-2.6.5.tar.bz2
+Source: xpmem-%{version}.tar.bz2
 Requires: dkms
 Provides: kmod(xpmem.ko)
 BuildArch: noarch
