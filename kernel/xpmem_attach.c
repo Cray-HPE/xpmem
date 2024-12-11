@@ -529,7 +529,14 @@ xpmem_attach(struct file *file, xpmem_apid_t apid, off_t offset, size_t size,
 
 	vma->vm_private_data = att;
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0)
+#define RHEL_USE_VM_FLAGS_SET 0
+#if defined(RHEL_RELEASE_CODE)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,14,0) && RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(9,5)
+#define RHEL_USE_VM_FLAGS_SET 1
+#endif
+#endif
+
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 3, 0) || RHEL_USE_VM_FLAGS_SET == 1
 	vm_flags_set(vma,
 		VM_DONTCOPY | VM_DONTDUMP | VM_IO | VM_DONTEXPAND | VM_PFNMAP);
 #else
