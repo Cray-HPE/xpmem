@@ -368,10 +368,22 @@ out:
 	return ret;
 }
 
+int xpmem_mapping_split(struct vm_area_struct *vma, unsigned long addr)
+{
+	/* From mm/mmap.c:
+	 * Forbid splitting special mappings - kernel has expectations over
+	 * the number of pages in mapping. Together with VM_DONTEXPAND
+	 * the size of vma should stay the same over the special mapping's
+	 * lifetime.
+	 */
+	return -EINVAL;
+}
+
 struct vm_operations_struct xpmem_vm_ops = {
 	.open = xpmem_open_handler,
 	.close = xpmem_close_handler,
-	.fault = xpmem_fault_handler
+	.fault = xpmem_fault_handler,
+	.may_split = xpmem_mapping_split
 };
 
 /*
