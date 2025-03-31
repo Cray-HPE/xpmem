@@ -69,8 +69,8 @@
  *       major - major revision number (12-bits)
  *       minor - minor revision number (16-bits)
  */
-#define XPMEM_CURRENT_VERSION		0x00026005
-#define XPMEM_CURRENT_VERSION_STRING	"2.6.5"
+#define XPMEM_CURRENT_VERSION		0x00027002
+#define XPMEM_CURRENT_VERSION_STRING	"2.7.2"
 
 #define XPMEM_MODULE_NAME "xpmem"
 
@@ -492,5 +492,20 @@ xpmem_wait_for_seg_destroyed(struct xpmem_segment *seg)
 				       !(seg->flags & (XPMEM_FLAG_DESTROYING |
 						       XPMEM_FLAG_RECALLINGPFNS))));
 }
+
+#if defined(RHEL_RELEASE_CODE)
+#if RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(9,6)
+static inline int pmd_large(pmd_t pte)
+{
+        return pmd_flags(pte) & _PAGE_PSE;
+}
+
+static inline int pud_large(pud_t pud)
+{
+        return (pud_val(pud) & (_PAGE_PSE | _PAGE_PRESENT)) ==
+                (_PAGE_PSE | _PAGE_PRESENT);
+}
+#endif
+#endif
 
 #endif /* _XPMEM_PRIVATE_H */

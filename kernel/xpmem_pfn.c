@@ -298,8 +298,14 @@ xpmem_pin_page(struct xpmem_thread_group *tg, struct task_struct *src_task,
 	/* Map with write permissions only if source VMA is writeable */
 	foll_write = (vma->vm_flags & VM_WRITE) ? FOLL_WRITE : 0;
 
+#if defined(RHEL_RELEASE_CODE)
+#if RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(9,6) 
+#define RHEL_USE_GUP_6 1
+#endif
+#endif
+
 	/* get_user_pages()/get_user_pages_remote() faults and pins the page */
-#if   LINUX_VERSION_CODE >= KERNEL_VERSION(6, 5, 0)
+#if   LINUX_VERSION_CODE >= KERNEL_VERSION(6, 5, 0) || defined(RHEL_USE_GUP_6)
 	ret = get_user_pages_remote (src_mm, vaddr, 1, foll_write, &page, NULL);
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(5, 9, 0)
 	ret = get_user_pages_remote (src_mm, vaddr, 1, foll_write, &page, NULL,
