@@ -1,7 +1,7 @@
 %global debug_package %{nil}
 
 %define intranamespace_name xpmem-dkms
-%define version 2.7.2
+%define version %(grep "^#define[[:space:]]XPMEM_CURRENT_VERSION_STRING" kernel/xpmem_private.h | awk '{print $3}' | tr -d '"')
 %define source_name %{intranamespace_name}-%{version}
 
 Summary: XPMEM: Cross-partition memory

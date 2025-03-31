@@ -2,12 +2,13 @@
 #define buildforkernels current
 #define buildforkernels akmod
 
+%define version %(grep "^#define[[:space:]]XPMEM_CURRENT_VERSION_STRING" kernel/xpmem_private.h | awk '{print $3}' | tr -d '"')
 %define kernel_release %(uname -r | sed -e 's/\.[^.]*$//g')
 %global debug_package %{nil}
 
 Summary: XPMEM: Cross-partition memory
 Name: xpmem-kmod-%{kernel_release}
-Version: 2.7.2
+Version: %{version} 
 Release: 0
 License: GPLv2
 Group: System Environment/Kernel
