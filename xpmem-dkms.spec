@@ -1,7 +1,7 @@
 %global debug_package %{nil}
 
 %define intranamespace_name xpmem-dkms
-%define version 2.7.1
+%define version 2.7.2
 %define source_name %{intranamespace_name}-%{version}
 
 Summary: XPMEM: Cross-partition memory
