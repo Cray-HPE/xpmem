@@ -51,8 +51,8 @@
 #define pud_is_huge(p) (0)
 #endif
 #elif defined(CONFIG_X86)
-#define pmd_is_huge(p) pmd_large(p)
-#define pud_is_huge(p) pud_large(p)
+#define pmd_is_huge(p) pmd_leaf(p)
+#define pud_is_huge(p) pud_leaf(p)
 #elif defined(CONFIG_PPC)
 #define pmd_is_huge(p) pmd_large(p)
 #define pud_is_huge(p) ((pud_val(p) & 0x3) != 0x0)
