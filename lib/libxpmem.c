@@ -85,6 +85,7 @@ xpmem_segid_t xpmem_make(void *vaddr, size_t size, int permit_type,
 	make_info.size  = size;
 	make_info.permit_type  = permit_type;
 	make_info.permit_value = (__u64)permit_value;
+	make_info.segid = 0;
 	if (xpmem_ioctl(XPMEM_CMD_MAKE, &make_info) == -1 || !make_info.segid)
 		return -1;
 	return make_info.segid;
@@ -109,6 +110,7 @@ xpmem_apid_t xpmem_get(xpmem_segid_t segid, int flags, int permit_type,
 	get_info.flags = flags;
 	get_info.permit_type = permit_type;
 	get_info.permit_value = (__u64)NULL;
+	get_info.apid = 0;
 	if (xpmem_ioctl(XPMEM_CMD_GET, &get_info) == -1 || !get_info.apid)
 		return -1;
 	return get_info.apid;
