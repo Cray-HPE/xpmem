@@ -6,7 +6,7 @@
 
 Summary: XPMEM: Cross-partition memory
 Name: xpmem
-Version: 1.0.0
+Version: 1.0.1
 Release: 0
 License: GPLv2
 Group: System Environment/Libraries
