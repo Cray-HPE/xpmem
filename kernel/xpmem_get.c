@@ -15,6 +15,7 @@
 #include <linux/mm.h>
 #include <linux/slab.h>
 #include <linux/stat.h>
+#include <linux/ipc_namespace.h>
 #include "xpmem_internal.h"
 #include "xpmem_private.h"
 
@@ -39,9 +40,13 @@ xpmem_ipcperms(struct kern_ipc_perm *ipcp, short flag)
 	else if (in_group_p(ipcp->cgid) || in_group_p(ipcp->gid))
 		granted_mode >>= 3;
 	/* is there some bit set in requested_mode but not in granted_mode? */
-	if ((requested_mode & ~granted_mode & 0007) && !capable(CAP_IPC_OWNER))
-		return -1;
-
+	if (requested_mode & ~granted_mode & 0007) {
+		struct ipc_namespace *ns = current->nsproxy->ipc_ns;
+		int ret = ns_capable(ns->user_ns, CAP_IPC_OWNER);
+		if (!ret) {
+			return -1;
+		}
+	}
 	return 0;
 }
 
