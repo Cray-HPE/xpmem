@@ -65,50 +65,69 @@
 #endif
 
 static pte_t *
-xpmem_hugetlb_pte(pte_t *pte, struct mm_struct *mm, u64 vaddr, u64 *offset)
+xpmem_trans_hugepage_pte(struct mm_struct *mm, u64 vaddr, u64 *offset)
 {
 	struct vm_area_struct *vma;
-	u64 page_size;
+	u64 address;
+	pte_t *pte = NULL;
+	u64 page_size = HPAGE_PMD_SIZE;
 
 	vma = find_vma(mm, vaddr);
 	if (!vma)
 		return NULL;
 
-	if (is_vm_hugetlb_page(vma)) {
-		struct hstate *hs = hstate_vma(vma);
+	address = vaddr & HPAGE_PMD_MASK;
 
-		page_size = huge_page_size(hs);
-
-#ifdef CONFIG_CRAY_MRT
-		/* NTH: not sure what cray's modifications are that require the
-		 * page size here. This seems like an unnecessary second walk
-		 * of the page tables. */
-		pte = huge_pte_offset(mm, address, huge_page_size(hs));
-#endif
-	} else {
-#ifdef CONFIG_TRANSPARENT_HUGEPAGE
-		/* NTH: transparent hugepages can appear in vma's that do not have
-		 * the VM_HUGETLB flag set. if we are here we know vaddr is in a
-		 * huge page so it must be within a transparent huge page. see
-		 * include/linux/huge_mm.h */
-		page_size = HPAGE_PMD_SIZE;
-#else
-		/*
-		 * We should never enter this area since xpmem_hugetlb_pte() is only
-		 * called if {pgd,pud,pmd}_large() is true
-		 */
-		BUG();
-#endif
-	}
-
-	if (offset) {
+	if (offset)
 		*offset = (vaddr & (page_size - 1)) & PAGE_MASK;
-	}
 
-	if (pte_none(*pte))
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,13,0))
+	pte = p_huge_pte_offset(mm, address, page_size);
+#else
+	pte = p_huge_pte_offset(mm, address);
+#endif
+
+	if (!pte || pte_none(*pte))
 		return NULL;
 
-	return (pte_t *)pte;
+	return pte;
+}
+
+static pte_t *
+xpmem_hugetlb_pte(struct mm_struct *mm, u64 vaddr, u64 *offset)
+{
+	struct vm_area_struct *vma;
+	u64 address;
+	pte_t *pte;
+
+	vma = find_vma(mm, vaddr);
+	if (!vma)
+		return NULL;
+
+	if (likely(is_vm_hugetlb_page(vma))) {
+		struct hstate *hs = hstate_vma(vma);
+		address = vaddr & huge_page_mask(hs);
+
+		if (offset)
+			*offset = (vaddr & (huge_page_size(hs) - 1)) & PAGE_MASK;
+
+#if (LINUX_VERSION_CODE >= KERNEL_VERSION(4,13,0)) || defined(CONFIG_CRAY_MRT)
+		pte = p_huge_pte_offset(mm, address, huge_page_size(hs));
+#else
+		pte = p_huge_pte_offset(mm, address);
+#endif
+
+		if (!pte || pte_none(*pte))
+			return NULL;
+
+		return pte;
+	}
+
+	/*
+	 * We should never enter this area since xpmem_hugetlb_pte() is only
+	 * called if {pgd,pud,pmd}_large() is true
+	 */
+	BUG();
 }
 #endif
 
@@ -154,7 +173,7 @@ xpmem_vaddr_to_pte_offset(struct mm_struct *mm, u64 vaddr, u64 *offset)
 #if CONFIG_HUGETLB_PAGE
 	else if (pud_is_huge(*pud)) {
 		/* pte folded into the pmd which is folded into the pud */
-		return xpmem_hugetlb_pte((pte_t *) pud, mm, vaddr, offset);
+		return xpmem_hugetlb_pte(mm, vaddr, offset);
 	}
 #endif
 
@@ -163,8 +182,25 @@ xpmem_vaddr_to_pte_offset(struct mm_struct *mm, u64 vaddr, u64 *offset)
 		return NULL;
 #if CONFIG_HUGETLB_PAGE
 	else if (pmd_is_huge(*pmd)) {
-		/* pte folded into the pmd */
-		return xpmem_hugetlb_pte((pte_t *) pmd, mm, vaddr, offset);
+		if (!pmd_trans_huge(*pmd)) {
+			return xpmem_hugetlb_pte(mm, vaddr, offset);
+		} else {
+			spinlock_t *slptr = pmd_lock(mm,pmd);
+
+			if (pmd_trans_huge(*pmd)) {
+				pte = xpmem_trans_hugepage_pte(mm, vaddr, offset);
+				spin_unlock(slptr);
+				return pte;
+			} else {
+#ifdef CONFIG_ARCH_ENABLE_THP_MIGRATION
+				if (is_pmd_migration_entry(*pmd)) {
+					spin_unlock(slptr);
+					return NULL;
+				}
+#endif
+				spin_unlock(slptr);
+			}
+		}
 	}
 #endif
 

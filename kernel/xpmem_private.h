@@ -69,8 +69,8 @@
  *       major - major revision number (12-bits)
  *       minor - minor revision number (16-bits)
  */
-#define XPMEM_CURRENT_VERSION		0x00027007
-#define XPMEM_CURRENT_VERSION_STRING	"2.7.7"
+#define XPMEM_CURRENT_VERSION		0x00027009
+#define XPMEM_CURRENT_VERSION_STRING	"2.7.9"
 
 #define XPMEM_MODULE_NAME "xpmem"
 
@@ -87,6 +87,11 @@ extern uint32_t xpmem_debug_on;
 		printk("[%d]%s: "format"\n", current->tgid, __func__, ##a);
 
 #define delayed_work work_struct
+
+#if (defined(RHEL_MAJOR) && RHEL_MAJOR == 9 && RHEL_MINOR >= 3)
+extern void *(*xpmem_kln_ptr)(char *);
+#define kallsyms_lookup_name (*xpmem_kln_ptr)
+#endif
 
 /*
  * Both the xpmem_segid_t and xpmem_apid_t are of type __s64 and designed
@@ -305,6 +310,7 @@ extern const struct proc_ops xpmem_unpin_procfs_ops;
 /* found in xpmem_main.c */
 extern struct xpmem_partition *xpmem_my_part;
 void xpmem_teardown(struct xpmem_thread_group *tg);
+extern pte_t * (*p_huge_pte_offset) (struct mm_struct *mm, unsigned long addr, unsigned long sz);
 
 /* found in xpmem_misc.c */
 extern struct xpmem_thread_group *
