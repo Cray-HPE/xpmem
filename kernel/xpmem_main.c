@@ -30,6 +30,7 @@
 #include <linux/file.h>
 #include <linux/proc_fs.h>
 #include <linux/slab.h>
+#include <linux/kallsyms.h>
 #include "xpmem_internal.h"
 #include "xpmem_private.h"
 
@@ -393,6 +394,21 @@ static struct miscdevice xpmem_dev_handle = {
 };
 
 /*
+ * kallsyms_lookup_name() is not exported on RHEL,so the address
+ * is parsed from /proc/kallsyms and passed as module argument
+ * using xpmem_kln_arg while loading the module.
+ */
+
+unsigned long xpmem_kln_arg = 0;
+
+#if (defined(RHEL_MAJOR) && RHEL_MAJOR == 9 && RHEL_MINOR >= 3)
+void* (*xpmem_kln_ptr)(char*) ;
+EXPORT_SYMBOL(xpmem_kln_ptr);
+#endif
+
+pte_t * (*p_huge_pte_offset) (struct mm_struct *mm, unsigned long addr, unsigned long sz);
+
+/*
  * Initialize the XPMEM driver.
  */
 int __init
@@ -401,6 +417,22 @@ xpmem_init(void)
 	int i, ret;
 	struct proc_dir_entry *global_pages_entry;
 	struct proc_dir_entry *debug_printk_entry;
+
+#if (defined(RHEL_MAJOR) && RHEL_MAJOR == 9 && RHEL_MINOR >= 3)
+        xpmem_kln_ptr = ( void*(*)(char*) ) xpmem_kln_arg;
+
+        if (xpmem_kln_ptr == NULL) {
+                printk(KERN_ERR
+                        "XPMEM: xpmem module xpmem_kln_arg module_param missing\n");
+                return -EFAULT;
+        }
+#endif
+
+        p_huge_pte_offset = (void *)kallsyms_lookup_name("huge_pte_offset");
+        if (p_huge_pte_offset == NULL) {
+                printk ("unable to find huge_pte_offset\n");
+                return -ENOENT;
+        }
 
 	/* create and initialize struct xpmem_partition array */
 	xpmem_my_part = kzalloc(sizeof(struct xpmem_partition) +
@@ -487,5 +519,7 @@ MODULE_AUTHOR("Hewlett Packard Enterprise");
 MODULE_INFO(supported, "external");
 MODULE_DESCRIPTION("XPMEM support");
 MODULE_VERSION(XPMEM_CURRENT_VERSION_STRING);
+module_param(xpmem_kln_arg, ulong, 0);
+MODULE_PARM_DESC(xpmem_kln_arg, "kallsyms_lookup_name address");
 module_init(xpmem_init);
 module_exit(xpmem_exit);

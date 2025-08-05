@@ -55,6 +55,10 @@ EOF
 %__install --mode=0644 usr/xpmem.conf %{buildroot}%{_modulesloaddir}/xpmem.conf
 %__mkdir_p %{buildroot}%{_udevrulesdir}
 %__install --mode=0644 usr/56-xpmem.rules %{buildroot}%{_udevrulesdir}/56-xpmem.rules
+%if 0%{?rhel}
+%__mkdir_p %{buildroot}%{_sysconfdir}/modprobe.d
+%__install --mode=0644 usr/xpmem-kln.conf %{buildroot}%{_sysconfdir}/modprobe.d/xpmem.conf
+%endif
 
 %preun
 /usr/sbin/dkms remove -m %{intranamespace_name} -v %{version}-%{release} --all --rpm_safe_upgrade
@@ -76,3 +80,7 @@ fi
 %{_modulesloaddir}/xpmem.conf
 %dir %{_udevrulesdir}
 %{_udevrulesdir}/56-xpmem.rules
+%if 0%{?rhel}
+%dir %{_sysconfdir}/modprobe.d
+%{_sysconfdir}/modprobe.d/xpmem.conf
+%endif
