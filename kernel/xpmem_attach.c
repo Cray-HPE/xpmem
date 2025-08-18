@@ -660,6 +660,9 @@ xpmem_detach(u64 at_vaddr)
 
 	xpmem_unpin_pages(ap->seg, current->mm, att->at_vaddr, att->at_size);
 
+#if CONFIG_PER_VMA_LOCK
+	vma_start_write(vma);
+#endif
 	vma->vm_private_data = NULL;
 
 	att->flags &= ~XPMEM_FLAG_VALIDPTEs;
@@ -747,6 +750,9 @@ xpmem_detach_att(struct xpmem_access_permit *ap, struct xpmem_attachment *att)
 
 	xpmem_unpin_pages(ap->seg, mm, att->at_vaddr, att->at_size);
 
+#if CONFIG_PER_VMA_LOCK
+	vma_start_write(vma);
+#endif
 	vma->vm_private_data = NULL;
 
 	att->flags &= ~XPMEM_FLAG_VALIDPTEs;
