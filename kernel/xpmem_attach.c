@@ -537,9 +537,6 @@ xpmem_attach(struct file *file, xpmem_apid_t apid, off_t offset, size_t size,
 
 	xpmem_mmap_write_lock(current->mm);
 	vma = find_vma(current->mm, at_vaddr);
-	xpmem_mmap_write_unlock(current->mm);
-
-	vma->vm_private_data = att;
 
 #if defined(RHEL_RELEASE_CODE)
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5,14,0) && RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(9,5)
@@ -555,7 +552,19 @@ xpmem_attach(struct file *file, xpmem_apid_t apid, off_t offset, size_t size,
 	    VM_DONTCOPY | VM_DONTDUMP | VM_IO | VM_DONTEXPAND | VM_PFNMAP;
 #endif
 
+	vma->vm_private_data = att;
 	vma->vm_ops = &xpmem_vm_ops;
+
+	/*
+	 * For the change to support per-VMA locks, we need to perform mm and vma
+	 * write locks in the following sequence
+	 *     - xpmem_mmap_write_lock(mm)
+	 *     - vm_flags_set(), which calls vma_start_write() which manages the vma
+	 *       write locking sequence.
+	 *     - xpmem_mmap_write_unlock(), which will automate the call to
+	 *       vma_end_write()
+	 */
+	xpmem_mmap_write_unlock(current->mm);
 
 	att->at_vma = vma;
 
