@@ -21,6 +21,7 @@
 #include <linux/mm.h>
 #include <linux/mman.h>
 #include <linux/file.h>
+#include <linux/sched/mm.h>
 #include <linux/slab.h>
 #include "xpmem_internal.h"
 #include "xpmem_private.h"
@@ -321,6 +322,8 @@ out_1:
 	 * perform the redundant remap_pfn_range() when a PFN already exists.
 	 */
         if (pfn && pfn_valid(pfn)) {
+		int old_flags;
+
 		old_pfn = xpmem_vaddr_to_PFN(vmf->vma->vm_mm, vaddr);
 		if (old_pfn) {
 			if (old_pfn == pfn) {
@@ -343,10 +346,30 @@ out_1:
 
 		XPMEM_DEBUG("calling remap_pfn_range() vaddr=%llx, pfn=%lx",
 				vaddr, pfn);
+		/* The kernel ran out of memory when trying to pin
+		 * an xpmem page, so the allocation resorts to the slow path
+		 * allocation, reclaiming space from allocated pages.  If the
+		 * page also happened to be an xpmem page, it would result
+		 * in a call to xpmem_invalidate_page(), which also tries to
+		 * acquire the invalidate_mutex.  This could lead to a deadlock
+		 * either due to the calling process is trying to acquire the
+		 * same mutex it is currently holding, or due to a circular
+		 * lock dependencies, where the mutex is held by another
+		 * process in the normal xp_mem_fault_handler path, where the
+		 * same process is waiting for the spin_lock that the calling
+		 * process is holding prior to calling xpmem_invalidate_page.
+		 *
+		 * To avoid deadlock, make sure any memory allocation attempt
+		 * while inside remap_pfn_range() will not call the slow path
+		 * allocation by calling memalloc_noreclaim_save(). 
+		 */
+		old_flags = memalloc_noreclaim_save();
 		if ((remap_pfn_range(vma, vaddr, pfn, PAGE_SIZE,
 				     vma->vm_page_prot)) == 0) {
 			ret = VM_FAULT_NOPAGE;
 		}
+		/* restore the no reclaim flag */
+		memalloc_noreclaim_restore(old_flags);
 	}
 out:
 	if (seg_tg_mmap_sem_locked)
