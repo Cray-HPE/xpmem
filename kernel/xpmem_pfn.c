@@ -64,6 +64,40 @@
 #define task_is_stopped(task) ((task)->state == TASK_STOPPED)
 #endif
 
+/*
+ * Take the provided ptl, and make sure the pte it protects didn't go away
+ * on us.  If it did, unlock and return NULL.   Otherwise, populate ptlp
+ * and return the locked pte.
+ */
+static pte_t *
+xpmem_pte_lock(pte_t *pte, spinlock_t *ptl, spinlock_t **ptlp)
+{
+	pte_t *ret = NULL;
+	spin_lock(ptl);
+
+	if (pte_none(*pte)) {
+		spin_unlock(ptl);
+	} else if (pte_present(*pte)) {
+		*ptlp = ptl;
+		ret = pte;
+	/*
+	 * Any caller who requested the lock does NOT want to get back
+	 * a non-present PTE, and they shouldn't be able to.  BUG.
+	 */
+	} else
+		DBUG_ON(!pte_present(*pte));
+
+	return ret;
+}
+
+/* Just a wrapper for spin_unlock, to keep the code looking consistent */
+
+static void
+xpmem_pte_unlock(spinlock_t *ptl)
+{
+	spin_unlock(ptl);
+}
+
 static pte_t *
 xpmem_trans_hugepage_pte(struct mm_struct *mm, u64 vaddr, u64 *offset)
 {
@@ -94,7 +128,7 @@ xpmem_trans_hugepage_pte(struct mm_struct *mm, u64 vaddr, u64 *offset)
 }
 
 static pte_t *
-xpmem_hugetlb_pte(struct mm_struct *mm, u64 vaddr, u64 *offset)
+xpmem_hugetlb_pte(struct mm_struct *mm, u64 vaddr, u64 *offset, spinlock_t **ptlp)
 {
 	struct vm_area_struct *vma;
 	u64 address;
@@ -120,6 +154,10 @@ xpmem_hugetlb_pte(struct mm_struct *mm, u64 vaddr, u64 *offset)
 		if (!pte || pte_none(*pte))
 			return NULL;
 
+		/* Take the ptl and give the caller a pointer if they asked for it */
+		if (ptlp)
+			return xpmem_pte_lock(pte, huge_pte_lock(hs, mm, pte), ptlp);
+
 		return pte;
 	}
 
@@ -134,9 +172,26 @@ xpmem_hugetlb_pte(struct mm_struct *mm, u64 vaddr, u64 *offset)
 /*
  * Given an address space and a virtual address return a pointer to its
  * pte if one is present.
+ *
+ * offset - Location to store the PTE offset in a huge page.
+ * size   - Used to store the level at which an invalid entry was found
+ *          in the page table.  This is only used by xpmem_unpin_pages.
+ * ptlp	  - Location to store the page table lock pointer for the PTE,
+ *          if a PTE is found.  If a ptl pointer is requested, this
+ *          function will return with the ptl locked.
+ *
+ * This function was consolidated together from the former xpmem_vaddr_to_pte_offset
+ * and xpmem_vaddr_to_pte_size functions, and had locking introduced into it
+ * to fix some race conditions that could occur between xpmem_fault_handler and
+ * various other bits of kernel functionality, most notably, page migration.
+ * The largest part of the problem was that we were reading things out of the
+ * page tables without locking the PTE pages beforehand, which meant that we
+ * could accidentally grab a NULL PFN in some situations, because the PFN we
+ * were trying to read had temporarily been unmapped from the source process's
+ * page table.
  */
 static pte_t *
-xpmem_vaddr_to_pte_offset(struct mm_struct *mm, u64 vaddr, u64 *offset)
+xpmem_vaddr_to_pte(struct mm_struct *mm, u64 vaddr, u64 *offset, u64 *size, spinlock_t **ptlp)
 {
 	pgd_t *pgd;
 	pud_t *pud;
@@ -152,8 +207,11 @@ xpmem_vaddr_to_pte_offset(struct mm_struct *mm, u64 vaddr, u64 *offset)
 		*offset = 0;
 
 	pgd = pgd_offset(mm, vaddr);
-	if (!pgd_present(*pgd))
+	if (!pgd_present(*pgd)) {
+		if (size)
+			*size = PGDIR_SIZE;
 		return NULL;
+	}
 	/* NTH: there is no pgd_large in kernel 3.13. from what I have read
 	 * the pte is never folded into the pgd. */
 
@@ -161,6 +219,8 @@ xpmem_vaddr_to_pte_offset(struct mm_struct *mm, u64 vaddr, u64 *offset)
 	/* 4.12+ has another level to the page tables */
 	p4d = p4d_offset(pgd, vaddr);
 	if (!p4d_present(*p4d)) {
+		if (size)
+			*size = P4D_SIZE;
 		return NULL;
         }
 
@@ -168,27 +228,37 @@ xpmem_vaddr_to_pte_offset(struct mm_struct *mm, u64 vaddr, u64 *offset)
 #else
 	pud = pud_offset(pgd, vaddr);
 #endif
-	if (!pud_present(*pud))
+	if (!pud_present(*pud)) {
+		if (size)
+			*size = PUD_SIZE;
 		return NULL;
+	}
 #if CONFIG_HUGETLB_PAGE
 	else if (pud_is_huge(*pud)) {
 		/* pte folded into the pmd which is folded into the pud */
-		return xpmem_hugetlb_pte(mm, vaddr, offset);
+		return xpmem_hugetlb_pte(mm, vaddr, offset, ptlp);
 	}
 #endif
 
 	pmd = pmd_offset(pud, vaddr);
-	if (!pmd_present(*pmd))
+	if (!pmd_present(*pmd)) {
+		if (size)
+			*size = PMD_SIZE;
 		return NULL;
+	}
 #if CONFIG_HUGETLB_PAGE
 	else if (pmd_is_huge(*pmd)) {
 		if (!pmd_trans_huge(*pmd)) {
-			return xpmem_hugetlb_pte(mm, vaddr, offset);
+			return xpmem_hugetlb_pte(mm, vaddr, offset, ptlp);
 		} else {
 			spinlock_t *slptr = pmd_lock(mm,pmd);
 
 			if (pmd_trans_huge(*pmd)) {
 				pte = xpmem_trans_hugepage_pte(mm, vaddr, offset);
+				if (pte && ptlp) {
+					*ptlp = slptr;
+					return pte;
+				}
 				spin_unlock(slptr);
 				return pte;
 			} else {
@@ -217,75 +287,15 @@ xpmem_vaddr_to_pte_offset(struct mm_struct *mm, u64 vaddr, u64 *offset)
 	pte = pte_offset_map(pmd, vaddr);
 #endif
 #endif
-	if (!pte_present(*pte))
-		return NULL;
-
-	return pte;
-}
-
-/*
- * This is similar to xpmem_vaddr_to_pte_offset, except it should
- * only be used for areas mapped with base pages. Specifically, it is used
- * for XPMEM attachments since we know XPMEM created those mappings with base
- * pages. The size argument is used to determine at which level of the page
- * tables an invalid entry was found. This is used by xpmem_unpin_pages. size
- * must always be a valid pointer.
- */
-static pte_t *
-xpmem_vaddr_to_pte_size(struct mm_struct *mm, u64 vaddr, u64 *size)
-{
-	pgd_t *pgd;
-	pud_t *pud;
-	pmd_t *pmd;
-	pte_t *pte;
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0)
-	p4d_t *p4d;
-#endif
-
-	pgd = pgd_offset(mm, vaddr);
-	if (!pgd_present(*pgd)) {
-		*size = PGDIR_SIZE;
+	if (!pte || pte_none(*pte)) {
+		if (size)
+			*size = PAGE_SIZE;
 		return NULL;
 	}
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 12, 0)
-	/* 4.12+ has another level to the page tables */
-	p4d = p4d_offset(pgd, vaddr);
-	if (!p4d_present(*p4d)) {
-		*size = P4D_SIZE;
-		return NULL;
-        }
+	if (ptlp)
+		return xpmem_pte_lock(pte, pte_lockptr(mm, pmd), ptlp);
 
-	pud = pud_offset(p4d, vaddr);
-#else
-	pud = pud_offset(pgd, vaddr);
-#endif
-	if (!pud_present(*pud)) {
-		*size = PUD_SIZE;
-		return NULL;
-	}
-	pmd = pmd_offset(pud, vaddr);
-	if (!pmd_present(*pmd)) {
-		*size = PMD_SIZE;
-		return NULL;
-	}
-#if defined(RHEL_RELEASE_CODE)
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(5,14,0) && RHEL_RELEASE_CODE >= RHEL_RELEASE_VERSION(9,4)
-	pte = pte_offset_kernel(pmd, vaddr);
-#else
-	pte = pte_offset_map(pmd, vaddr);
-#endif
-#else /* non-RHEL */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(6, 4, 0)
-	pte = pte_offset_kernel(pmd, vaddr);
-#else
-	pte = pte_offset_map(pmd, vaddr);
-#endif
-#endif
-	if (!pte_present(*pte)) {
-		*size = PAGE_SIZE;
-		return NULL;
-	}
 	return pte;
 }
 
@@ -318,8 +328,9 @@ xpmem_pin_page(struct xpmem_thread_group *tg, struct task_struct *src_task,
 	 * the policy is node-local (the most common default policy),
 	 * we might have to temporarily switch cpus to get the page
 	 * placed where we want it.
+	 *
 	 */
-	if (xpmem_vaddr_to_pte_offset(src_mm, vaddr, NULL) == NULL &&
+	if (xpmem_vaddr_to_pte(src_mm, vaddr, NULL, NULL, NULL) == NULL &&
 	    cpu_to_node(task_cpu(current)) != cpu_to_node(task_cpu(src_task))) {
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0)
 		saved_mask = current->cpus_mask;
@@ -384,6 +395,7 @@ xpmem_unpin_pages(struct xpmem_segment *seg, struct mm_struct *mm,
 	struct page *page;
 	u64 pfn, vsize = 0;
 	pte_t *pte = NULL;
+	spinlock_t *ptl;
 
 	XPMEM_DEBUG("vaddr=%llx, size=%lx, n_pgs=%d", vaddr, size, n_pgs);
 
@@ -391,7 +403,7 @@ xpmem_unpin_pages(struct xpmem_segment *seg, struct mm_struct *mm,
 	vaddr &= PAGE_MASK;
 
 	while (n_pgs > 0) {
-		pte = xpmem_vaddr_to_pte_size(mm, vaddr, &vsize);
+		pte = xpmem_vaddr_to_pte(mm, vaddr, NULL, &vsize, &ptl);
 
 		if (pte) {
 			DBUG_ON(!pte_present(*pte));
@@ -407,6 +419,8 @@ xpmem_unpin_pages(struct xpmem_segment *seg, struct mm_struct *mm,
 			n_pgs_unpinned++;
 			vaddr += PAGE_SIZE;
 			n_pgs--;
+
+			xpmem_pte_unlock(ptl);
 		} else {
 			/*
 			 * vsize holds the memory size we know isn't mapped,
@@ -452,13 +466,15 @@ xpmem_vaddr_to_PFN(struct mm_struct *mm, u64 vaddr)
 {
 	pte_t *pte;
 	u64 pfn, offset;
+	spinlock_t *ptl;
 
-	pte = xpmem_vaddr_to_pte_offset(mm, vaddr, &offset);
+	pte = xpmem_vaddr_to_pte(mm, vaddr, &offset, NULL, &ptl);
 	if (pte == NULL)
 		return 0;
 	DBUG_ON(!pte_present(*pte));
 
 	pfn = pte_pfn(*pte) + (offset >> PAGE_SHIFT);
+	xpmem_pte_unlock(ptl);
 
 	return pfn;
 }
