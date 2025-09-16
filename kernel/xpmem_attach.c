@@ -346,6 +346,19 @@ out_1:
 
 		XPMEM_DEBUG("calling remap_pfn_range() vaddr=%llx, pfn=%lx",
 				vaddr, pfn);
+		/*
+		 * We need to hold the invalidate mutex while we try to map in
+		 * the PFN we got from get_user_pages.  This protects us from the
+		 * MMU notifier zapping the page from our table before it's ever
+		 * really "seen" by xpmem. The notifier calls xpmem_unpin_pages
+		 * on an address range that we're about to map into, but sees nothing
+		 * since the page isn't mapped yet, then remap_pfn_range maps in the PFN
+		 * from above in the fault path, and the MMU notifier immediately zaps it.
+		 * This leads to an "eternally pinned page" which has quite a few
+		 * negative effects.
+		 */
+		mutex_lock(&att->invalidate_mutex);
+
 		/* The kernel ran out of memory when trying to pin
 		 * an xpmem page, so the allocation resorts to the slow path
 		 * allocation, reclaiming space from allocated pages.  If the
@@ -370,6 +383,7 @@ out_1:
 		}
 		/* restore the no reclaim flag */
 		memalloc_noreclaim_restore(old_flags);
+		mutex_unlock(&att->invalidate_mutex);
 	}
 out:
 	if (seg_tg_mmap_sem_locked)
