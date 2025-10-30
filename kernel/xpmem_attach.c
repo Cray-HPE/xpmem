@@ -10,7 +10,7 @@
  * Copyright (c) 2019      Google, LLC. All rights reserved.
  * Copyright (c) 2019      Nathan Hjelm. All rights reserved.
  * Copyright (c) 2017-2020 ARM, Inc. All Rights Reserved
- * Copyright (c) 2024 HPE. All Rights Reserved
+ * Copyright (c) 2024-2025 Hewlett Packard Enterprise Development LP. All Rights Reserved
  */
 
 /*
@@ -334,7 +334,9 @@ out_1:
 				       "%ld != %ld\n", old_pfn, pfn);
 			}
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 6, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+			unpin_user_page(pfn_to_page(pfn));
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 6, 0)
 			put_page(pfn_to_page(pfn));
 #else
 			page_cache_release(pfn_to_page(pfn));

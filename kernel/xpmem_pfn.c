@@ -7,6 +7,7 @@
  * Copyright 2009, 2014 Cray Inc. All Rights Reserved
  * Copyright 2016-2020 Arm Inc. All Rights Reserved
  * Copyright (c) 2016-2018 Nathan Hjelm <hjelmn@cs.unm.edu>
+ * Copyright (c) 2025 Hewlett Packard Enterprise Development LP. All Rights Reserved.
  */
 
 /*
@@ -353,9 +354,9 @@ xpmem_pin_page(struct xpmem_thread_group *tg, struct task_struct *src_task,
 
 	/* get_user_pages()/get_user_pages_remote() faults and pins the page */
 #if   LINUX_VERSION_CODE >= KERNEL_VERSION(6, 5, 0) || defined(RHEL_USE_GUP_6)
-	ret = get_user_pages_remote (src_mm, vaddr, 1, foll_write, &page, NULL);
+	ret = pin_user_pages_remote (src_mm, vaddr, 1, foll_write, &page, NULL);
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(5, 9, 0)
-	ret = get_user_pages_remote (src_mm, vaddr, 1, foll_write, &page, NULL,
+	ret = pin_user_pages_remote (src_mm, vaddr, 1, foll_write, &page, NULL,
 				     NULL);
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 10, 0)
 	ret = get_user_pages_remote (src_task, src_mm, vaddr, 1, foll_write,
@@ -411,7 +412,9 @@ xpmem_unpin_pages(struct xpmem_segment *seg, struct mm_struct *mm,
 			XPMEM_DEBUG("pfn=%llx, vaddr=%llx, n_pgs=%d",
 					pfn, vaddr, n_pgs);
 			page = virt_to_page(__va(pfn << PAGE_SHIFT));
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(4, 6, 0)
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0)
+			unpin_user_page(page);
+#elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 6, 0)
 			put_page(page);
 #else
 			page_cache_release(page);
