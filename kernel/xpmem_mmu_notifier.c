@@ -5,6 +5,7 @@
  * Copyright (c) 2014-2015 Los Alamos National Security, LLC. All rights
  *                         reserved.
  * Copyright (c) 2016      Nathan Hjelm <hjelmn@cs.unm.edu>
+ * Copyright (c) 2025 Hewlett Packard Enterprise Development LP. All Rights Reserved.
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License. See the file "COPYING" in the main directory of this archive for
@@ -153,6 +154,30 @@ xpmem_invalidate_page(struct mmu_notifier *mn, struct mm_struct *mm,
 #endif
 
 /*
+ * xpmem_tg_set_destroying()
+ *
+ * Set XPMEM_FLAGS_DESTROYING in tg->flags if it's not already set.
+ *
+ * Returns 1 if we set it, 0 if it was already set.
+ */
+static int
+xpmem_tg_set_destroying(struct xpmem_thread_group *tg)
+{
+        int ret;
+
+        spin_lock(&tg->lock);
+        if (tg->flags & XPMEM_FLAG_DESTROYING) {
+                ret = 0;
+        } else {
+                tg->flags |= XPMEM_FLAG_DESTROYING;
+                ret = 1;
+        }
+		spin_unlock(&tg->lock);
+
+		return ret;
+}
+
+/*
  * MMU notifier callout for releasing a mm_struct.  Remove all traces of
  * XPMEM from the address space, using the same logic that would apply if
  * /dev/xpmem was closed.
@@ -174,8 +199,12 @@ xpmem_mmu_release(struct mmu_notifier *mn, struct mm_struct *mm)
 		 * Normal case, process is removing its own address
 		 * space.
 		 */
-		XPMEM_DEBUG("self: tg->mm=%p", tg->mm);
-		xpmem_teardown(tg);
+		int call_teardown;
+        XPMEM_DEBUG("PID %d (%s): self: tg->mm=%p",
+                        current->tgid, current->comm, tg->mm);
+        call_teardown = xpmem_tg_set_destroying(tg);
+        if (call_teardown)
+            xpmem_teardown(tg);
 		return;
 	} else {
 		/* Abnormal case, must continue with code below. */
@@ -197,16 +226,15 @@ xpmem_mmu_release(struct mmu_notifier *mn, struct mm_struct *mm)
 		list_for_each_entry(tg, &xpmem_my_part->tg_hashtable[i].list,
 				    tg_hashlist) {
 			if (tg->mm == mm) {
-				spin_lock(&tg->lock);
-				if (tg->flags & XPMEM_FLAG_DESTROYING) {
-					spin_unlock(&tg->lock);
-					continue;
-				}
-				spin_unlock(&tg->lock);
+				int call_teardown;
+                call_teardown = xpmem_tg_set_destroying(tg);
+                if (!call_teardown);
+                    continue;
 
-				xpmem_tg_ref(tg);
-				read_unlock(&xpmem_my_part->tg_hashtable[i].lock);
-				XPMEM_DEBUG("not self: tg->mm=%p", tg->mm);
+                xpmem_tg_ref(tg);
+                read_unlock(&xpmem_my_part->tg_hashtable[i].lock);
+                XPMEM_DEBUG("PID %d (%s): not self: tg->mm=%p",
+                            current->tgid, current->comm,  tg->mm);
 				xpmem_teardown(tg);
 				return;
 			}
