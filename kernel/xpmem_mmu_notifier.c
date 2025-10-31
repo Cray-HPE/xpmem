@@ -163,15 +163,15 @@ xpmem_invalidate_page(struct mmu_notifier *mn, struct mm_struct *mm,
 static int
 xpmem_tg_set_destroying(struct xpmem_thread_group *tg)
 {
-        int ret;
+	int ret;
 
-        spin_lock(&tg->lock);
-        if (tg->flags & XPMEM_FLAG_DESTROYING) {
-                ret = 0;
-        } else {
-                tg->flags |= XPMEM_FLAG_DESTROYING;
-                ret = 1;
-        }
+	spin_lock(&tg->lock);
+	if (tg->flags & XPMEM_FLAG_DESTROYING) {
+		ret = 0;
+	} else {
+		tg->flags |= XPMEM_FLAG_DESTROYING;
+		ret = 1;
+	}
 		spin_unlock(&tg->lock);
 
 		return ret;
@@ -200,11 +200,11 @@ xpmem_mmu_release(struct mmu_notifier *mn, struct mm_struct *mm)
 		 * space.
 		 */
 		int call_teardown;
-        XPMEM_DEBUG("PID %d (%s): self: tg->mm=%p",
-                        current->tgid, current->comm, tg->mm);
-        call_teardown = xpmem_tg_set_destroying(tg);
-        if (call_teardown)
-            xpmem_teardown(tg);
+		XPMEM_DEBUG("PID %d (%s): self: tg->mm=%p",
+			current->tgid, current->comm, tg->mm);
+		call_teardown = xpmem_tg_set_destroying(tg);
+		if (call_teardown)
+			xpmem_teardown(tg);
 		return;
 	} else {
 		/* Abnormal case, must continue with code below. */
@@ -227,14 +227,14 @@ xpmem_mmu_release(struct mmu_notifier *mn, struct mm_struct *mm)
 				    tg_hashlist) {
 			if (tg->mm == mm) {
 				int call_teardown;
-                call_teardown = xpmem_tg_set_destroying(tg);
-                if (!call_teardown);
-                    continue;
+				call_teardown = xpmem_tg_set_destroying(tg);
+				if (!call_teardown);
+					continue;
 
-                xpmem_tg_ref(tg);
-                read_unlock(&xpmem_my_part->tg_hashtable[i].lock);
-                XPMEM_DEBUG("PID %d (%s): not self: tg->mm=%p",
-                            current->tgid, current->comm,  tg->mm);
+                		xpmem_tg_ref(tg);
+                		read_unlock(&xpmem_my_part->tg_hashtable[i].lock);
+				XPMEM_DEBUG("PID %d (%s): not self: tg->mm=%p",
+					current->tgid, current->comm,  tg->mm);
 				xpmem_teardown(tg);
 				return;
 			}
