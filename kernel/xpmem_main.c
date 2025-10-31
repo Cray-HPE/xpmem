@@ -7,7 +7,7 @@
  * Copyright 2010, 2014 Cray Inc. All Rights Reserved
  * Copyright 2015-2018 Los Alamos National Security, LLC. All rights reserved.
  * Copyright 2017 ARM, Inc. All rights reserved.
- * Copyright (c) 2025 Hewlett Packard Enterprise Development LP. All Rights Reserved.
+ * Copyright Hewlett Packard Enterprise Development LP. All Rights Reserved.
  */
 
 /*

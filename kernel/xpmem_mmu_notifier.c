@@ -5,7 +5,7 @@
  * Copyright (c) 2014-2015 Los Alamos National Security, LLC. All rights
  *                         reserved.
  * Copyright (c) 2016      Nathan Hjelm <hjelmn@cs.unm.edu>
- * Copyright (c) 2025 Hewlett Packard Enterprise Development LP. All Rights Reserved.
+ * Copyright Hewlett Packard Enterprise Development LP. All Rights Reserved.
  *
  * This file is subject to the terms and conditions of the GNU General Public
  * License. See the file "COPYING" in the main directory of this archive for
@@ -172,9 +172,9 @@ xpmem_tg_set_destroying(struct xpmem_thread_group *tg)
 		tg->flags |= XPMEM_FLAG_DESTROYING;
 		ret = 1;
 	}
-		spin_unlock(&tg->lock);
+	spin_unlock(&tg->lock);
 
-		return ret;
+	return ret;
 }
 
 /*
@@ -231,8 +231,8 @@ xpmem_mmu_release(struct mmu_notifier *mn, struct mm_struct *mm)
 				if (!call_teardown);
 					continue;
 
-                		xpmem_tg_ref(tg);
-                		read_unlock(&xpmem_my_part->tg_hashtable[i].lock);
+				xpmem_tg_ref(tg);
+				read_unlock(&xpmem_my_part->tg_hashtable[i].lock);
 				XPMEM_DEBUG("PID %d (%s): not self: tg->mm=%p",
 					current->tgid, current->comm,  tg->mm);
 				xpmem_teardown(tg);

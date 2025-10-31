@@ -8,7 +8,7 @@
  * Copyright (c) 2014-2016 Los Alamos National Security, LCC. All rights
  *                         reserved.
  * Copyright 2016-2020 Arm Inc. All Rights Reserved
- * Copyright (c) 2025 Hewlett Packard Enterprise Development LP. All Rights Reserved.
+ * Copyright Hewlett Packard Enterprise Development LP. All Rights Reserved.
  */
 
 /*
