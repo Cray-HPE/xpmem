@@ -70,8 +70,8 @@
  *       major - major revision number (12-bits)
  *       minor - minor revision number (16-bits)
  */
-#define XPMEM_CURRENT_VERSION		0x0002700D
-#define XPMEM_CURRENT_VERSION_STRING	"2.7.13"
+#define XPMEM_CURRENT_VERSION		0x0002700E
+#define XPMEM_CURRENT_VERSION_STRING	"2.7.14"
 
 #define XPMEM_MODULE_NAME "xpmem"
 
@@ -300,6 +300,7 @@ extern void xpmem_unblock_recall_PFNs(struct xpmem_thread_group *);
 extern int xpmem_fork_begin(void);
 extern int xpmem_fork_end(void);
 #define XPMEM_TGID_STRING_LEN	11
+extern struct mutex xpmem_unpin_procfs_mutex;
 extern struct proc_dir_entry *xpmem_unpin_procfs_dir;
 #if LINUX_VERSION_CODE < KERNEL_VERSION(5,6,0)
 extern struct file_operations xpmem_unpin_procfs_ops;
@@ -372,7 +373,7 @@ extern const struct proc_ops xpmem_debug_printk_procfs_ops;
 #endif
 /* found in xpmem_mmu_notifier.c */
 extern int xpmem_mmu_notifier_init(struct xpmem_thread_group *);
-extern void xpmem_mmu_notifier_unlink(struct xpmem_thread_group *);
+extern bool xpmem_mmu_notifier_unlink(struct xpmem_thread_group *);
 
 /*
  * Inlines that mark an internal driver structure as being destroyable or not.
