@@ -10,7 +10,7 @@
  * Copyright (c) 2019      Google, LLC. All rights reserved.
  * Copyright (c) 2019      Nathan Hjelm. All rights reserved.
  * Copyright (c) 2017-2020 ARM, Inc. All Rights Reserved
- * Copyright (c) 2024-2025 Hewlett Packard Enterprise Development LP. All Rights Reserved
+ * Copyright Hewlett Packard Enterprise Development LP. All Rights Reserved
  */
 
 /*
@@ -912,8 +912,16 @@ xpmem_clear_PTEs_of_att(struct xpmem_attachment *att, u64 start, u64 end,
 		 */
 		if (from_mmu)
 			vma = att->at_vma;
-		else
+		else {
 			vma = find_vma(att->mm, att->at_vaddr);
+			if (!vma || vma->vm_start > att->at_vaddr) {
+				XPMEM_DEBUG("VMA problem: vma %lx vm_start %lx at_vaddr %lx",
+					(unsigned long)vma,
+					vma ? (unsigned long)vma->vm_start : 0,
+					(unsigned long)att->at_vaddr);
+				goto out;
+			}
+		}
 
 		/* NTH: is this a viable alternative to zap_page_range(). The
 		 * benefit of zap_vma_ptes is that it is exported by default. */
