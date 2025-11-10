@@ -70,8 +70,8 @@
  *       major - major revision number (12-bits)
  *       minor - minor revision number (16-bits)
  */
-#define XPMEM_CURRENT_VERSION		0x0002700E
-#define XPMEM_CURRENT_VERSION_STRING	"2.7.14"
+#define XPMEM_CURRENT_VERSION		0x0002700F
+#define XPMEM_CURRENT_VERSION_STRING	"2.7.15"
 
 #define XPMEM_MODULE_NAME "xpmem"
 
