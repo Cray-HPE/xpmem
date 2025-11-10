@@ -7,6 +7,7 @@
  * Copyright 2010, 2014 Cray Inc. All Rights Reserved
  * Copyright 2015-2018 Los Alamos National Security, LLC. All rights reserved.
  * Copyright 2017 ARM, Inc. All rights reserved.
+ * Copyright Hewlett Packard Enterprise Development LP. All Rights Reserved.
  */
 
 /*
@@ -188,10 +189,8 @@ xpmem_teardown(struct xpmem_thread_group *tg)
 {
 	XPMEM_DEBUG("tg->mm=%p", tg->mm);
 
-	spin_lock(&tg->lock);
+	/* Don't need to take the spinlock just to check a bit */
 	DBUG_ON(tg->flags & XPMEM_FLAG_DESTROYING);
-	tg->flags |= XPMEM_FLAG_DESTROYING;
-	spin_unlock(&tg->lock);
 
 	xpmem_release_aps_of_tg(tg);
 	xpmem_remove_segs_of_tg(tg);
