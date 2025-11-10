@@ -8,7 +8,7 @@
  * Copyright (c) 2014-2016 Los Alamos National Security, LCC. All rights
  *                         reserved.
  * Copyright 2016-2020 Arm Inc. All Rights Reserved
- * Copyright (c) 2025 Hewlett Packard Enterprise Development LP. All Rights Reserved.
+ * Copyright Hewlett Packard Enterprise Development LP. All Rights Reserved.
  */
 
 /*
@@ -70,8 +70,8 @@
  *       major - major revision number (12-bits)
  *       minor - minor revision number (16-bits)
  */
-#define XPMEM_CURRENT_VERSION		0x0002700D
-#define XPMEM_CURRENT_VERSION_STRING	"2.7.13"
+#define XPMEM_CURRENT_VERSION		0x0002700E
+#define XPMEM_CURRENT_VERSION_STRING	"2.7.14"
 
 #define XPMEM_MODULE_NAME "xpmem"
 
