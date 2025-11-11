@@ -111,10 +111,12 @@ xpmem_open(struct inode *inode, struct file *file)
 	}
 
 	snprintf(tgid_string, XPMEM_TGID_STRING_LEN, "%d", current->tgid);
+	mutex_lock(&xpmem_unpin_procfs_mutex);
 	unpin_entry = proc_create_data(tgid_string, 0644,
 				       xpmem_unpin_procfs_dir,
 				       &xpmem_unpin_procfs_ops,
 				       (void *)(unsigned long)current->tgid);
+	mutex_unlock(&xpmem_unpin_procfs_mutex);
 	if (unpin_entry != NULL) {
 		proc_set_user(unpin_entry, current_uid(), current_gid());
 	}
@@ -152,14 +154,28 @@ xpmem_open(struct inode *inode, struct file *file)
 static void
 xpmem_destroy_tg(struct xpmem_thread_group *tg)
 {
+	bool do_unhash;
+	int index;
+
 	XPMEM_DEBUG("tg->mm=%p", tg->mm);
 
 	/*
 	 * Calls MMU release function if exit_mmap() has not executed yet.
 	 * Decrements mm_count.
 	 */
-	xpmem_mmu_notifier_unlink(tg);
-	xpmem_tg_destroyable(tg);
+	do_unhash = xpmem_mmu_notifier_unlink(tg);
+	if(do_unhash) {
+		/* Remove tg structure from its hash list */
+		index = xpmem_tg_hashtable_index(tg->tgid);
+
+		write_lock(&xpmem_my_part->tg_hashtable[index].lock);
+		BUG_ON(list_empty(&tg->tg_hashlist));
+		list_del_init(&tg->tg_hashlist);
+		write_unlock(&xpmem_my_part->tg_hashtable[index].lock);
+
+		xpmem_tg_destroyable(tg);
+
+	}
 	xpmem_tg_deref(tg);
 }
 
@@ -242,8 +258,6 @@ xpmem_flush(struct file *file, fl_owner_t owner)
 		 */
 		return 0;
 	}
-
-	list_del_init(&tg->tg_hashlist);
 
 	write_unlock(&xpmem_my_part->tg_hashtable[index].lock);
 
@@ -446,6 +460,7 @@ xpmem_init(void)
 	}
 
 	/* create the /proc interface directory (/proc/xpmem) */
+	mutex_init(&xpmem_unpin_procfs_mutex);
 	xpmem_unpin_procfs_dir = proc_mkdir(XPMEM_MODULE_NAME, NULL);
 	if (xpmem_unpin_procfs_dir == NULL) {
 		ret = -EBUSY;

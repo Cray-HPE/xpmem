@@ -281,17 +281,19 @@ xpmem_mmu_notifier_init(struct xpmem_thread_group *tg)
 /*
  * Unlink MMU notifier callbacks
  */
-void
+bool
 xpmem_mmu_notifier_unlink(struct xpmem_thread_group *tg)
 {
 	spin_lock(&tg->lock);
 	if (!tg->mmu_initialized || tg->mmu_unregister_called) {
 		spin_unlock(&tg->lock);
-		return;
+		return false;
 	}
 	tg->mmu_unregister_called = 1;
 	spin_unlock(&tg->lock);
 
 	XPMEM_DEBUG("tg->mm=%p", tg->mm);
 	mmu_notifier_unregister(&tg->mmu_not, tg->mm);
+
+	return true;
 }
