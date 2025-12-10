@@ -6,6 +6,7 @@
  * Copyright (c) 2004-2007 Silicon Graphics, Inc.  All Rights Reserved.
  * Copyright 2009, 2010, 2014 Cray Inc. All Rights Reserved
  * Copyright 2017-2020 Arm, Inc. All Rights Reserved
+ * Copyright Hewlett Packard Enterprise Development LP. All Rights Reserved.
  */
 
 /*
@@ -86,8 +87,6 @@ xpmem_tg_ref_by_apid(xpmem_apid_t apid)
 void
 xpmem_tg_deref(struct xpmem_thread_group *tg)
 {
-	char tgid_string[XPMEM_TGID_STRING_LEN];
-
 	DBUG_ON(atomic_read(&tg->refcnt) <= 0);
 	if (atomic_dec_return(&tg->refcnt) != 0)
 		return;
@@ -105,11 +104,6 @@ xpmem_tg_deref(struct xpmem_thread_group *tg)
 	 * the extra increment previously done in xpmem_open().
 	 */
 	put_task_struct(tg->group_leader);
-
-	snprintf(tgid_string, XPMEM_TGID_STRING_LEN, "%d", tg->tgid);
-	mutex_lock(&xpmem_unpin_procfs_mutex);
-	remove_proc_entry(tgid_string, xpmem_unpin_procfs_dir);
-	mutex_unlock(&xpmem_unpin_procfs_mutex);
 
 	kfree(tg);
 }

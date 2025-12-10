@@ -269,7 +269,9 @@ xpmem_flush(struct file *file, fl_owner_t owner)
 	 * and the distruction of the thread group object.
 	 */
 	snprintf(tgid_string, XPMEM_TGID_STRING_LEN, "%d", tg->tgid);
+	mutex_lock(&xpmem_unpin_procfs_mutex);
 	remove_proc_entry(tgid_string, xpmem_unpin_procfs_dir);
+	mutex_unlock(&xpmem_unpin_procfs_mutex);
 
 	xpmem_destroy_tg(tg);
 
