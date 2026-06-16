@@ -16,7 +16,3 @@ EXTRA_DIST = \
 	xpmem-kmod.spec
 
 dist: dist-bzip2
-
-install-data-local:
-	$(INSTALL_DATA) -D $(srcdir)/module $(DESTDIR)@MODULE_PATH@
-
