@@ -2,11 +2,9 @@
 
 %define _prefix /opt/xpmem
 
-%define _release_modulefile /opt/cray/modulefiles/xpmem/%{version}-%{release}
-
 Summary: XPMEM: Cross-partition memory
 Name: xpmem
-Version: 1.0.1
+Version: 1.0.2
 Release: 0
 License: GPLv2
 Group: System Environment/Libraries
@@ -24,7 +22,7 @@ memory of another process into its virtual address space.
 %setup -n xpmem-%{version}
 
 %build
-./configure --prefix=%{_prefix} --libdir=%{_libdir} --includedir=%{_includedir} --disable-kernel-module --with-module=%{_release_modulefile}  --with-pkgconfig-prefix=/usr/lib64/pkgconfig
+./configure --prefix=%{_prefix} --libdir=%{_libdir} --includedir=%{_includedir} --disable-kernel-module --with-pkgconfig-prefix=/usr/lib64/pkgconfig
 make
 
 %install
@@ -39,7 +37,6 @@ echo %{_libdir} > %{buildroot}/etc/ld.so.conf.d/xpmem.conf
 /etc/ld.so.conf.d/xpmem.conf
 %dir %{_prefix}
 %{_prefix}
-%{_release_modulefile}
 /usr/lib64/pkgconfig/xpmem.pc
 
 %post
