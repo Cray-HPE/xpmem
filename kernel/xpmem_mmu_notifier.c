@@ -228,7 +228,7 @@ xpmem_mmu_release(struct mmu_notifier *mn, struct mm_struct *mm)
 			if (tg->mm == mm) {
 				int call_teardown;
 				call_teardown = xpmem_tg_set_destroying(tg);
-				if (!call_teardown);
+				if (!call_teardown)
 					continue;
 
 				xpmem_tg_ref(tg);
