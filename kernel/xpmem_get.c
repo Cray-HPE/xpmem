@@ -133,6 +133,10 @@ xpmem_get(xpmem_segid_t segid, int flags, int permit_type, void *permit_value,
 
 	/* assuming XPMEM_PERMIT_MODE, do the appropriate permission check */
 	if (xpmem_check_permit_mode(flags, seg) != 0) {
+		XPMEM_DEBUG("xpmem_get: permission denied: tgid=%d segid=0x%llx "
+			    "owner_tgid=%d flags=0x%x",
+			    current->tgid, (unsigned long long)segid,
+			    seg_tg->tgid, flags);
 		xpmem_seg_deref(seg);
 		xpmem_tg_deref(seg_tg);
 		return -EACCES;

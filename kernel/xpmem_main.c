@@ -76,6 +76,16 @@ xpmem_open(struct inode *inode, struct file *file)
 		return 0;
 	}
 
+	/*
+	 * All threads in a thread group must share the same mm_struct; the
+	 * rest of xpmem relies on this invariant (tg->mm is stored once
+	 * below and used on behalf of every thread in the group). Check it
+	 * before allocating/registering anything so a violation is a clean
+	 * early return instead of a crash after partial setup.
+	 */
+	if (WARN_ON(current->mm != current->group_leader->mm))
+		return -EINVAL;
+
 	/* create tg */
 	tg = kzalloc(sizeof(struct xpmem_thread_group) +
 		     sizeof(struct xpmem_hashlist) *
@@ -145,7 +155,6 @@ xpmem_open(struct inode *inode, struct file *file)
 	 */
 	get_task_struct(current->group_leader);
 	tg->group_leader = current->group_leader;
-	BUG_ON(current->mm != current->group_leader->mm);
 
 	return 0;
 }
@@ -161,7 +170,7 @@ xpmem_destroy_tg(struct xpmem_thread_group *tg)
 	bool do_unhash;
 	int index;
 
-	XPMEM_DEBUG("tg->mm=%p", tg->mm);
+	XPMEM_DEBUG("tg->tgid=%d", tg->tgid);
 
 	/*
 	 * Calls MMU release function if exit_mmap() has not executed yet.
@@ -173,12 +182,19 @@ xpmem_destroy_tg(struct xpmem_thread_group *tg)
 		index = xpmem_tg_hashtable_index(tg->tgid);
 
 		write_lock(&xpmem_my_part->tg_hashtable[index].lock);
-		BUG_ON(list_empty(&tg->tg_hashlist));
-		list_del_init(&tg->tg_hashlist);
-		write_unlock(&xpmem_my_part->tg_hashtable[index].lock);
+		if (WARN_ON(list_empty(&tg->tg_hashlist))) {
+			/*
+			 * Already unhashed elsewhere - avoid double
+			 * list_del_init()/xpmem_tg_destroyable() on a tg
+			 * that's already being torn down.
+			 */
+			write_unlock(&xpmem_my_part->tg_hashtable[index].lock);
+		} else {
+			list_del_init(&tg->tg_hashlist);
+			write_unlock(&xpmem_my_part->tg_hashtable[index].lock);
 
-		xpmem_tg_destroyable(tg);
-
+			xpmem_tg_destroyable(tg);
+		}
 	}
 	xpmem_tg_deref(tg);
 }
@@ -191,7 +207,7 @@ xpmem_destroy_tg(struct xpmem_thread_group *tg)
 void
 xpmem_teardown(struct xpmem_thread_group *tg)
 {
-	XPMEM_DEBUG("tg->mm=%p", tg->mm);
+	XPMEM_DEBUG("tg->tgid=%d", tg->tgid);
 
 	/* Don't need to take the spinlock just to check a bit */
 	DBUG_ON(tg->flags & XPMEM_FLAG_DESTROYING);
@@ -265,7 +281,7 @@ xpmem_flush(struct file *file, fl_owner_t owner)
 
 	write_unlock(&xpmem_my_part->tg_hashtable[index].lock);
 
-	XPMEM_DEBUG("tg->mm=%p", tg->mm);
+	XPMEM_DEBUG("tg->tgid=%d", tg->tgid);
 
 	/*
 	 * NTH: the thread group may not be released until later so remove the

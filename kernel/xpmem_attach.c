@@ -125,9 +125,17 @@ xpmem_close_handler(struct vm_area_struct *vma)
 		 */
 		remaining_vaddr = vma->vm_end;
 		remaining_vma = find_vma(att->mm, remaining_vaddr);
-		BUG_ON(!remaining_vma ||
-		       remaining_vma->vm_start > remaining_vaddr ||
-		       remaining_vma->vm_private_data != vma->vm_private_data);
+		if (WARN_ON(!remaining_vma ||
+			    remaining_vma->vm_start > remaining_vaddr ||
+			    remaining_vma->vm_private_data != vma->vm_private_data)) {
+			/*
+			 * Unexpected vma layout - bail out of the fixup
+			 * rather than risk corrupting an unrelated vma. The
+			 * attachment is left as-is; the teardown signal below
+			 * still fires for the current thread group.
+			 */
+			goto out;
+		}
 
 		/* this should be safe (we have the mmap_sem/mmap_lock write-locked) */
 		remaining_vma->vm_private_data = NULL;
@@ -142,9 +150,15 @@ xpmem_close_handler(struct vm_area_struct *vma)
 	 * up the corresponding xpmem_attachment structure.
 	 */
 	remaining_vma = find_vma(att->mm, remaining_vaddr);
-	BUG_ON(!remaining_vma ||
-	       remaining_vma->vm_start > remaining_vaddr ||
-	       remaining_vma->vm_private_data != vma->vm_private_data);
+	if (WARN_ON(!remaining_vma ||
+		    remaining_vma->vm_start > remaining_vaddr ||
+		    remaining_vma->vm_private_data != vma->vm_private_data)) {
+		/*
+		 * Unexpected vma layout - bail out rather than risk
+		 * corrupting an unrelated vma or attachment state.
+		 */
+		goto out;
+	}
 
 	att->at_vaddr = remaining_vma->vm_start;
 	att->at_size = remaining_vma->vm_end - remaining_vma->vm_start;
@@ -745,8 +759,8 @@ xpmem_detach_att(struct xpmem_access_permit *ap, struct xpmem_attachment *att)
 	int ret;
 
 
-	XPMEM_DEBUG("detaching attr %p. current->mm = %p, att->mm = %p", att,
-		    (void *) current->mm, (void *) att->mm);
+	XPMEM_DEBUG("detaching att: current->mm=%s att->mm=%s",
+		    current->mm ? "set" : "null", att->mm ? "set" : "null");
 
 	if ((current->mm != NULL) && (att->mm != NULL)) {
 		mm = att->mm;

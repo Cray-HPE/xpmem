@@ -84,8 +84,8 @@ xpmem_invalidate_range(struct mmu_notifier *mn,
 
 	seg_tg = container_of(mn, struct xpmem_thread_group, mmu_not);
 
-	XPMEM_DEBUG("xpmem_invalidate_range (%p, %p, %lu, %lu)", mn, mm,
-		    start, end);
+	XPMEM_DEBUG("xpmem_invalidate_range: tgid=%d range=[0x%lx, 0x%lx)",
+		    seg_tg->tgid, start, end);
 
 	/*
 	 * This invalidate callout came from a destination address space
@@ -200,8 +200,8 @@ xpmem_mmu_release(struct mmu_notifier *mn, struct mm_struct *mm)
 		 * space.
 		 */
 		int call_teardown;
-		XPMEM_DEBUG("PID %d (%s): self: tg->mm=%p",
-			current->tgid, current->comm, tg->mm);
+		XPMEM_DEBUG("PID %d (%s): self: tg->tgid=%d",
+			current->tgid, current->comm, tg->tgid);
 		call_teardown = xpmem_tg_set_destroying(tg);
 		if (call_teardown)
 			xpmem_teardown(tg);
@@ -233,8 +233,8 @@ xpmem_mmu_release(struct mmu_notifier *mn, struct mm_struct *mm)
 
 				xpmem_tg_ref(tg);
 				read_unlock(&xpmem_my_part->tg_hashtable[i].lock);
-				XPMEM_DEBUG("PID %d (%s): not self: tg->mm=%p",
-					current->tgid, current->comm,  tg->mm);
+				XPMEM_DEBUG("PID %d (%s): not self: tg->tgid=%d",
+					current->tgid, current->comm, tg->tgid);
 				xpmem_teardown(tg);
 				return;
 			}
@@ -267,7 +267,7 @@ xpmem_mmu_notifier_init(struct xpmem_thread_group *tg)
 	if (!tg->mmu_initialized) {
 		tg->mmu_not.ops = &xpmem_mmuops;
 		tg->mmu_unregister_called = 0;
-		XPMEM_DEBUG("tg->mm=%p", tg->mm);
+		XPMEM_DEBUG("tg->tgid=%d", tg->tgid);
 		ret = mmu_notifier_register(&tg->mmu_not, tg->mm);
 		if (ret)
 			return ret;
@@ -292,7 +292,7 @@ xpmem_mmu_notifier_unlink(struct xpmem_thread_group *tg)
 	tg->mmu_unregister_called = 1;
 	spin_unlock(&tg->lock);
 
-	XPMEM_DEBUG("tg->mm=%p", tg->mm);
+	XPMEM_DEBUG("tg->tgid=%d", tg->tgid);
 	mmu_notifier_unregister(&tg->mmu_not, tg->mm);
 
 	return true;

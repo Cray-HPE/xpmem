@@ -60,6 +60,11 @@
  *     2.6.3  Fix bugs introduced in 2.6.2 that worked with 3.x but
  *            not 4.x kernels.
  *     2.6.4  Fix hold-and-wait deadlock on detach.
+ *     2.7.20 Replace unconditional BUG()/BUG_ON() in xpmem_attach.c,
+ *            xpmem_main.c, and xpmem_pfn.c with WARN_ON()/WARN() plus
+ *            graceful error-path recovery; remove raw kernel pointers
+ *            from XPMEM_DEBUG() logging; add permission-denial logging
+ *            (tgid/segid context) to xpmem_get().
  *
  * This int constant has the following format:
  *
@@ -71,8 +76,8 @@
  *       minor - minor revision number (16-bits)
  */
 
-#define XPMEM_CURRENT_VERSION		0x00027013
-#define XPMEM_CURRENT_VERSION_STRING	"2.7.19"
+#define XPMEM_CURRENT_VERSION		0x00027014
+#define XPMEM_CURRENT_VERSION_STRING	"2.7.20"
 
 #define XPMEM_MODULE_NAME "xpmem"
 

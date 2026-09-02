@@ -7,7 +7,7 @@
  * Copyright 2009, 2014 Cray Inc. All Rights Reserved
  * Copyright 2016-2020 Arm Inc. All Rights Reserved
  * Copyright (c) 2016-2018 Nathan Hjelm <hjelmn@cs.unm.edu>
- * Copyright (c) 2025 Hewlett Packard Enterprise Development LP. All Rights Reserved.
+ * Copyright Hewlett Packard Enterprise Development LP. All Rights Reserved.
  */
 
 /*
@@ -164,9 +164,11 @@ xpmem_hugetlb_pte(struct mm_struct *mm, u64 vaddr, u64 *offset, spinlock_t **ptl
 
 	/*
 	 * We should never enter this area since xpmem_hugetlb_pte() is only
-	 * called if {pgd,pud,pmd}_large() is true
+	 * called if {pgd,pud,pmd}_large() is true. Warn instead of crashing
+	 * the kernel; the caller already treats a NULL pte as "not present".
 	 */
-	BUG();
+	WARN_ON(1);
+	return NULL;
 }
 #endif
 
@@ -336,7 +338,7 @@ xpmem_pin_page(struct xpmem_thread_group *tg, struct task_struct *src_task,
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(5, 3, 0)
 		saved_mask = current->cpus_mask;
 #elif LINUX_VERSION_CODE >= KERNEL_VERSION(4, 18, 0)
-                saved_mask = current->cpus_mask;
+		saved_mask = current->cpus_mask;
 #else
 		saved_mask = current->cpus_allowed;
 #endif
