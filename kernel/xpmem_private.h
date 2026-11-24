@@ -22,6 +22,8 @@
 #include <linux/bit_spinlock.h>
 #include <linux/sched.h>
 #include <linux/hugetlb.h>
+/* For vma_iterator which arrived in kernel 6.1 but is backported to RHEL 9.8 and SLES15SP7. */
+#include <linux/mm_types.h> 
 #include <asm/signal.h>
 
 #ifdef CONFIG_MMU_NOTIFIER
@@ -71,8 +73,8 @@
  *       minor - minor revision number (16-bits)
  */
 
-#define XPMEM_CURRENT_VERSION		0x00027013
-#define XPMEM_CURRENT_VERSION_STRING	"2.7.19"
+#define XPMEM_CURRENT_VERSION		0x00027014
+#define XPMEM_CURRENT_VERSION_STRING	"2.7.20"
 
 #define XPMEM_MODULE_NAME "xpmem"
 
@@ -345,6 +347,23 @@ static inline struct xpmem_thread_group *__xpmem_tg_ref_by_tgid_nolock(pid_t tgi
 #define xpmem_mmap_read_lock(_mm)	mmap_read_lock(_mm)
 #define xpmem_mmap_write_lock(_mm)	mmap_write_lock(_mm)
 #define xpmem_mmap_read_trylock(_mm)	mmap_read_trylock(_mm)
+#endif
+
+/* For distributions without vma iterator */
+#ifndef VMA_ITERATOR
+struct vma_iterator {
+	struct mm_struct *mm;
+	unsigned long start;
+};
+
+#define vma_iter_init(_vmi, _mm, _start) \
+	(_vmi)->mm = _mm; \
+	(_vmi)->start = _start;
+
+#define for_each_vma_range(_vmi, _vma, _end) \
+	for ((_vma) = find_vma_intersection((_vmi).mm, (_vmi).start, (_end)); \
+		(_vma) && (_vma)->vm_start < (_end); \
+		(_vma) = (_vma)->vm_next)
 #endif
 
 extern struct xpmem_thread_group *xpmem_tg_ref_by_segid(xpmem_segid_t);
