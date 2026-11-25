@@ -79,8 +79,10 @@ xpmem_invalidate_range(struct mmu_notifier *mn,
 	unsigned long start  = mnr->start;
 	unsigned long end    = mnr->end;
 #endif
+	unsigned long curr;
 	struct xpmem_thread_group *seg_tg;
 	struct vm_area_struct *vma;
+	struct vma_iterator vmi;
 
 	seg_tg = container_of(mn, struct xpmem_thread_group, mmu_not);
 
@@ -100,42 +102,34 @@ xpmem_invalidate_range(struct mmu_notifier *mn,
 	if (offset_in_page(end) != 0)
 		end += PAGE_SIZE - offset_in_page(end);
 
-
 	/* NTH: Changes to the tlb code should have removed the need for gathering
 	 * the mmu here. There is not any state that needs to be restored */
+	curr = start;
+	while (curr < end) {
+		bool found = false;
+		unsigned long vma_start, vma_end;
 
-	vma = find_vma_intersection(mm, start, end);
-	if (vma == NULL) {
-		xpmem_invalidate_PTEs_range(seg_tg, start, end);
-		return;
-	}
+		rcu_read_lock();
+		vma_iter_init(&vmi, mm, curr);
+		for_each_vma_range(vmi, vma, end) {
+			if (!xpmem_is_vm_ops_set(vma))
+				continue;
 
-	for ( ; vma && vma->vm_start < end; vma = find_vma(mm, vma->vm_end)) {
-		unsigned long vm_start;
-		unsigned long vm_end;
+			vma_start = vma->vm_start;
+			vma_end = vma->vm_end;
+			found = true;
+			break;
+		}
+		rcu_read_unlock();
 
-		/*
-		 * If the vma is XPMEM-attached memory, bail out.  XPMEM handles
-		 * this case outside of the MMU notifier functions and we don't
-		 * want xpmem_invalidate_range() to perform the operations a
-		 * second time and screw up page counts, etc. We can't block in
-		 * an MMU notifier callout, so we skip locking the mmap_sem
-		 * around the call to find_vma(). This is OK however since the
-		 * kernel can't rearrange the address space while a MMU notifier
-		 * callout is occurring.
-		 */
-		if (xpmem_is_vm_ops_set(vma))
-			continue;
+		if (!found) {
+			xpmem_invalidate_PTEs_range(seg_tg, curr, end);
+			break;
+		}
 
-		vm_start = max(vma->vm_start, start);
-		if (vm_start >= vma->vm_end)
-			continue;
-
-		vm_end = min(vma->vm_end, end);
-		if (vm_end <= vma->vm_start)
-			continue;
-
-		xpmem_invalidate_PTEs_range(seg_tg, vm_start, vm_end);
+		if (curr < min(vma_start, end))
+			xpmem_invalidate_PTEs_range(seg_tg, curr, min(vma_start, end));
+		curr = min(vma_end, end);
 	}
 }
 
